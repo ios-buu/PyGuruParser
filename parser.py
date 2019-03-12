@@ -1,7 +1,7 @@
 # code=utf-8
 
 import MySQLdb
-
+import re
 
 # info -> 每个API的单独数据
 
@@ -23,7 +23,56 @@ import MySQLdb
 
 # parameters -> 变量的结构及信息
 
+
+def clean_data_logic(origin, data):
+    """
+        :param origin: 传入的原数据
+        :param data: 递归调用的传递数据
+        :return: 返回处理后的结果
+        本函数用于清洗data中的引用数据，将所有$ref替换为引用的对象
+    """
+    print()
+    if type(data) != dict and type(data) != list:
+        return data
+    if type(data) == dict:
+        for item_name in data:
+            if item_name == '$ref' and type(data[item_name]) == str:
+                ref_path = data['$ref'].split("/")
+                temp = origin
+                for path in ref_path[1:]:
+                    temp = temp.get(path)
+                    if not temp:
+                        return data
+                data['$ref'] = clean_data_logic(origin, temp)
+                return data
+            else:
+                data[item_name] = clean_data_logic(origin, data[item_name])
+    else:
+        i = 0
+        for item in data:
+            if type(item) == str and re.match('#/', item):
+                ref_path = item.split("/")
+                temp = origin
+                for path in ref_path[1:]:
+                    temp = temp.get(path)
+                    if not temp:
+                        return data
+                data[item] = clean_data_logic(origin, temp)
+            else:
+                data[i] = clean_data_logic(origin, data[i])
+            i += 1
+    return data
+
+
 def build_table(data, host, username, password, database):
+    """
+    :param data: 转换成dict的yaml数据
+    :param host: 数据库host
+    :param username: 数据库用户名
+    :param password: 数据库密码
+    :param database: 数据库名称
+    :return: void
+    """
     # 建立链接
     db = MySQLdb.connect(
         host,
@@ -79,6 +128,15 @@ def build_table(data, host, username, password, database):
 
 
 def insert(data, host, username, password, database, build=False):
+    """
+    :param data: 转换成dict的yaml数据
+    :param host: 数据库host
+    :param username: 数据库用户名
+    :param password: 数据库密码
+    :param database: 数据库名称
+    :param build: 是否初始化数据库
+    :return: void
+    """
     if build:
         build_table(data, host, username, password, database)
     # 建立链接
@@ -102,6 +160,8 @@ def insert(data, host, username, password, database, build=False):
         for column_name in data:
             if column_name != 'info':
                 insert_data[column_name] = data[column_name]
+    # 清洗data
+    insert_data = clean_data_logic(insert_data, insert_data)
     # insert时的字段字符串
     column_text = ''
     # insert时的数据字符串
@@ -114,7 +174,7 @@ def insert(data, host, username, password, database, build=False):
         column_text = column_text + f'{temp_column_name},'
         temp_data = str(insert_data[column_name]).replace('"', '\\"').replace("'", "\\'")
         data_text = data_text + f'"{temp_data}",'
-        update_text = update_text + temp_column_name + '="'+temp_data+'",'
+        update_text = update_text + temp_column_name + '="' + temp_data + '",'
     # 查询是否存在
     sql = 'SELECT id FROM info WHERE domain_key = "' + insert_data['domain_key'] + '"'
     cursor.execute(sql)
