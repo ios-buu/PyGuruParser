@@ -2,7 +2,7 @@
 
 import MySQLdb
 import re
-
+import json
 # info -> 每个API的单独数据
 
 # externalDocs -> 文档信息
@@ -31,12 +31,13 @@ def clean_data_logic(origin, data):
         :return: 返回处理后的结果
         本函数用于清洗data中的引用数据，将所有$ref替换为引用的对象
     """
-    print()
     if type(data) != dict and type(data) != list:
         return data
     if type(data) == dict:
         for item_name in data:
-            if item_name == '$ref' and type(data[item_name]) == str:
+            if type(data[item_name]) != str:
+                return data
+            if item_name == '$ref':
                 ref_path = data['$ref'].split("/")
                 temp = origin
                 for path in ref_path[1:]:
@@ -50,7 +51,9 @@ def clean_data_logic(origin, data):
     else:
         i = 0
         for item in data:
-            if type(item) == str and re.match('#/', item):
+            if type(item) != str:
+                return data
+            if re.match('#/', item):
                 ref_path = item.split("/")
                 temp = origin
                 for path in ref_path[1:]:
@@ -147,7 +150,10 @@ def insert(data, host, username, password, database, build=False):
         database
     )
     # 创建空间
-    insert_data = {'domain_key': (data['host'] + data['basePath']).replace('\\', '\\\\')}
+    domain_key = data['host']
+    if data.get('basePath'):
+        domain_key = domain_key+data['basePath']
+    insert_data = {'domain_key': domain_key.replace('\\', '\\\\')}
 
     # 创建指针
     cursor = db.cursor()
@@ -172,7 +178,11 @@ def insert(data, host, username, password, database, build=False):
     for column_name in insert_data:
         temp_column_name = column_name.replace('-', '_')
         column_text = column_text + f'{temp_column_name},'
-        temp_data = str(insert_data[column_name]).replace('"', '\\"').replace("'", "\\'")
+
+        temp_data = insert_data[column_name]
+        if type(temp_data) is not str:
+            temp_data = json.dumps(temp_data,ensure_ascii=False)
+        temp_data = temp_data.replace('"', '\\"').replace("'", "\\'")
         data_text = data_text + f'"{temp_data}",'
         update_text = update_text + temp_column_name + '="' + temp_data + '",'
     # 查询是否存在

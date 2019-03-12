@@ -1,8 +1,9 @@
 # code=utf-8
-import yaml
-import os
-import parser
 import sys
+
+import yaml
+
+from util import parser
 
 file_name = 'swagger.yaml'
 
