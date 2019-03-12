@@ -23,7 +23,6 @@ import json
 
 # parameters -> 变量的结构及信息
 
-
 def clean_data_logic(origin, data):
     """
         :param origin: 传入的原数据
@@ -81,7 +80,8 @@ def build_table(data, host, username, password, database):
         host,
         username,
         password,
-        database
+        database,
+        charset="utf8"
     )
     # 创建指针
     cursor = db.cursor()
@@ -130,7 +130,7 @@ def build_table(data, host, username, password, database):
     db.close()
 
 
-def insert(data, host, username, password, database, build=False):
+def insert(data, host=None, username=None, password=None, database=None, build=False):
     """
     :param data: 转换成dict的yaml数据
     :param host: 数据库host
@@ -143,16 +143,19 @@ def insert(data, host, username, password, database, build=False):
     if build:
         build_table(data, host, username, password, database)
     # 建立链接
+
     db = MySQLdb.connect(
         host,
         username,
         password,
-        database
+        database,
+        charset="utf8"
     )
     # 创建空间
     domain_key = data['host']
     if data.get('basePath'):
-        domain_key = domain_key+data['basePath']
+        domain_key = domain_key + data['basePath']
+    domain_key = domain_key + '|' + data['file_path'].split('APIs')[1].replace('/swagger.yaml','')
     insert_data = {'domain_key': domain_key.replace('\\', '\\\\')}
 
     # 创建指针
@@ -182,11 +185,12 @@ def insert(data, host, username, password, database, build=False):
         temp_data = insert_data[column_name]
         if type(temp_data) is not str:
             temp_data = json.dumps(temp_data,ensure_ascii=False)
-        temp_data = temp_data.replace('"', '\\"').replace("'", "\\'")
+
+        temp_data = temp_data.replace('"', "'").replace("'", "'")
         data_text = data_text + f'"{temp_data}",'
         update_text = update_text + temp_column_name + '="' + temp_data + '",'
     # 查询是否存在
-    sql = 'SELECT id FROM info WHERE domain_key = "' + insert_data['domain_key'] + '"'
+    sql = 'SELECT id FROM info WHERE domain_key = "' + insert_data['domain_key'] + '" and version ="'+insert_data['version']+'"'
     cursor.execute(sql)
     result = cursor.fetchone()
     # 不存在 -> insert | 存在 -> update
@@ -194,11 +198,15 @@ def insert(data, host, username, password, database, build=False):
         sql = f'insert into info({column_text[:-1]}) values({data_text[:-1]})'
     else:
         sql = f'update info set {update_text[:-1]} where id={result[0]}'
+        print(insert_data['domain_key'] + " " + insert_data['version'] + " " + insert_data['title'])
     try:
         # 执行sql语句
         cursor.execute(sql)
         # 提交到数据库执行
         db.commit()
-    except:
+    except Exception as e:
+        print('插入异常 -> '+insert_data['host'])
+        print(e)
         db.rollback()
+
     db.close()

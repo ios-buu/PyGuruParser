@@ -15,3 +15,5 @@ def scan(path, match_file_name=None):
             else:
                 file_list = scan(path + "/" + file_name,match_file_name) | file_list
     return file_list
+
+data = scan('/Users/canfuu/Documents/python/code/final_project/openapi-directory',match_file_name='swagger.yaml')
