@@ -7,7 +7,7 @@ import sys
 import yaml
 
 import MySQLdb
-sys.setrecursionlimit(2000)
+sys.setrecursionlimit(10000)
 
 file_paths = scanner.scan('/Users/canfuu/Documents/python/code/final_project/openapi-directory',
                           match_file_name='swagger.yaml')
@@ -22,7 +22,6 @@ for path in file_paths:
     try:
         data = yaml.load(text)
         data['file_path'] = path
-
         parser.insert(data, host='localhost', username='root', password='root', database='api_swagger_source', build=True)
     except Exception as e:
         print("执行错误 -> " + path)

@@ -3,10 +3,9 @@
 import MySQLdb
 import re
 import json
+from sqlalchemy import Column, String, Integer, Text, create_engine
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String,ForeignKey
-from sqlalchemy.orm import sessionmaker,relationship
-from sqlalchemy import create_engine
 
 # info -> 每个API的单独数据
 
@@ -24,11 +23,24 @@ from sqlalchemy import create_engine
 
 # paths -> API文档
 
+Base = declarative_base()
+
+
+# 定义User对象:
+class User(Base):
+    # 表的名字:
+    __tablename__ = 'user'
+
+    # 表的结构:
+    id = Column(String(20), primary_key=True)
+    name = Column(String(20))
+
+
 # definitions -> 数据定义
 
 # parameters -> 变量的结构及信息
 
-def clean_data_logic(origin, data):
+def clean_data_logic(origin, data, path=None):
     """
         :param origin: 传入的原数据
         :param data: 递归调用的传递数据
@@ -37,36 +49,41 @@ def clean_data_logic(origin, data):
     """
     if type(data) != dict and type(data) != list:
         return data
-    if type(data) == dict:
+    if type(data) is dict:
         for item_name in data:
-            if type(data[item_name]) != str:
-                return data
-            if item_name == '$ref':
-                ref_path = data['$ref'].split("/")
+            if item_name == '$ref' and type(data[item_name]) == str and '#/' in str(data[item_name]):
+                ref_path = data[item_name].split("/")
                 temp = origin
+                has_ref = False
+                node = None
                 for path in ref_path[1:]:
+                    node = path
+                    has_ref = True
                     temp = temp.get(path)
                     if not temp:
                         return data
-                data['$ref'] = clean_data_logic(origin, temp)
+                if f'/{node}/' in f"{path}/{node}/":
+                    return data
+                if has_ref:
+                    data['$ref'] = clean_data_logic(origin, temp, f"{path}/{node}/")
                 return data
             else:
-                data[item_name] = clean_data_logic(origin, data[item_name])
+                data[item_name] = clean_data_logic(origin, data[item_name], path)
     else:
         i = 0
         for item in data:
-            if type(item) != str:
-                return data
-            if re.match('#/', item):
+            if type(item) == str and re.match('#/', item):
                 ref_path = item.split("/")
                 temp = origin
+                has_ref = False
                 for path in ref_path[1:]:
                     temp = temp.get(path)
                     if not temp:
                         return data
-                data[item] = clean_data_logic(origin, temp)
-            else:
-                data[i] = clean_data_logic(origin, data[i])
+                if has_ref:
+                    data[item] = clean_data_logic(origin, temp, f"{path}{i}/")
+            elif '#/' in str(item):
+                data[i] = clean_data_logic(origin, data[i], f"{path}{i}/")
             i += 1
     return data
 
@@ -147,16 +164,18 @@ def convert(host, username, password, database):
     :return:
     """
     # 建立链接
-    db = MySQLdb.connect(
-        host,
-        username,
-        password,
-        database,
-        charset="utf8"
-    )
+    engine = create_engine(f'mysql://{username}:{password}@{host}/{database}')
+
+    session_factory = sessionmaker(bind=engine)
+    session = session_factory()
     # 创建指针
-    cursor = db.cursor()
-    cursor.execute("SELECT *")
+    result_proxy = session.execute("SELECT paths FROM info")
+    result = result_proxy.fetchall()
+    api = result[0].items()[0][1]
+
+
+# convert('localhost', 'root', 'root', 'api_swagger_source')
+
 
 def insert(data, host, username, password, database, build=False):
     """
@@ -186,7 +205,6 @@ def insert(data, host, username, password, database, build=False):
     if data.get('file_path') and 'APIs' in data['file_path']:
         domain_key = domain_key + '|' + data['file_path'].split('APIs')[1].replace('/swagger.yaml', '')
     insert_data = {'domain_key': domain_key.replace('\\', '\\\\')}
-
     # 创建指针
     cursor = db.cursor()
     # 包装info
@@ -199,7 +217,7 @@ def insert(data, host, username, password, database, build=False):
             if column_name != 'info':
                 insert_data[column_name] = data[column_name]
     # 清洗data
-    insert_data = clean_data_logic(insert_data, insert_data)
+    insert_data = clean_data_logic(insert_data, insert_data, path='$ref/')
     # insert时的字段字符串
     column_text = ''
     # insert时的数据字符串
@@ -222,7 +240,8 @@ def insert(data, host, username, password, database, build=False):
         # update_text时update时，要更改的部分字符串
         update_text = update_text + temp_column_name + "='" + temp_data + "',"
     # 查询是否存在
-    sql = 'SELECT id FROM info WHERE domain_key = "' + insert_data['domain_key'] + '" AND version ="' + insert_data['version'] + '"'
+    sql = 'SELECT id FROM info WHERE domain_key = "' + insert_data['domain_key'] + '" AND version ="' + insert_data[
+        'version'] + '"'
     # 提交
     cursor.execute(sql)
     # 获取结果
@@ -232,7 +251,7 @@ def insert(data, host, username, password, database, build=False):
         sql = f'INSERT INTO info({column_text[:-1]}) VALUES({data_text[:-1]})'
     else:
         sql = f'UPDATE info SET {update_text[:-1]} WHERE id={result[0]}'
-        print(insert_data['domain_key'] + " " + insert_data['version'] + " " + insert_data['title'])
+        # print(insert_data['domain_key'] + " " + insert_data['version'] + " " + insert_data['title'])
     try:
         # 执行sql语句
         cursor.execute(sql)
