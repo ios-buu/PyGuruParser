@@ -3,7 +3,7 @@ import sys
 
 import yaml
 
-from util import parser
+from suppose import parser
 
 file_name = 'swagger.yaml'
 

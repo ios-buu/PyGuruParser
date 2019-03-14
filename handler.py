@@ -1,6 +1,6 @@
 # code-utf-8
 
-from util import parser, scanner
+from suppose import parser, scanner
 
 import sys
 
