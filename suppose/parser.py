@@ -181,7 +181,7 @@ def insert(data, host, username, password, database, build=False):
     )
     # 创建空间
     domain_key = data['host']
-    if data.get('basePath'):
+    if data.get('basePath') and 'APIs' in data.get['basePat']:
         domain_key = domain_key + data['basePath']
     domain_key = domain_key + '|' + data['file_path'].split('APIs')[1].replace('/swagger.yaml', '')
     insert_data = {'domain_key': domain_key.replace('\\', '\\\\')}
