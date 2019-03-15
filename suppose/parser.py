@@ -47,32 +47,35 @@ def clean_data_logic(origin, data, path=None):
         :return: 返回处理后的结果
         本函数用于清洗data中的引用数据，将所有$ref替换为引用的对象
     """
+    filter_list = ['name', 'description', 'type', 'in', 'operationId', 'tags', 'file_path']
     if type(data) != dict and type(data) != list:
         return data
     if type(data) is dict:
         for item_name in data:
-            if item_name == '$ref' and type(data[item_name]) == str and '#/' in str(data[item_name]):
-                ref_path = data[item_name].split("/")
+            if item_name == '$ref' and type(data[item_name]) == str:
+                ref_paths = data[item_name].split("/")
                 temp = origin
                 has_ref = False
                 node = None
-                for path in ref_path[1:]:
-                    node = path
+                for ref_path in ref_paths[1:]:
+                    node = ref_path
                     has_ref = True
-                    temp = temp.get(path)
+                    temp = temp.get(ref_path)
                     if not temp:
                         return data
-                if f'/{node}/' in f"{path}/{node}/":
+                if f'{node}/' in f"{path}":
                     return data
                 if has_ref:
-                    data['$ref'] = clean_data_logic(origin, temp, f"{path}/{node}/")
+                    data['$ref'] = clean_data_logic(origin, temp, f"{path}{node}/")
                 return data
-            else:
-                data[item_name] = clean_data_logic(origin, data[item_name], path)
+            elif item_name == '$ref' and type(data[item_name]) != str:
+                return data
+            elif item_name not in filter_list:
+                data[item_name] = clean_data_logic(origin, data[item_name], f"{path}{item_name}/")
     else:
         i = 0
         for item in data:
-            if type(item) == str and re.match('#/', item):
+            if type(item) == str and '#/' in item:
                 ref_path = item.split("/")
                 temp = origin
                 has_ref = False
@@ -82,7 +85,7 @@ def clean_data_logic(origin, data, path=None):
                         return data
                 if has_ref:
                     data[item] = clean_data_logic(origin, temp, f"{path}{i}/")
-            elif '#/' in str(item):
+            else:
                 data[i] = clean_data_logic(origin, data[i], f"{path}{i}/")
             i += 1
     return data
@@ -172,6 +175,7 @@ def convert(host, username, password, database):
     result_proxy = session.execute("SELECT paths FROM info")
     result = result_proxy.fetchall()
     api = result[0].items()[0][1]
+
 
 
 # convert('localhost', 'root', 'root', 'api_swagger_source')
