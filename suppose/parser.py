@@ -3,10 +3,23 @@
 import MySQLdb
 import re
 import json
-from sqlalchemy import Column, String, Integer, Text, create_engine
+from sqlalchemy import Column, String, Integer, Text, CLOB, JSON, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+import logging
+import sys
+logger = logging.getLogger(__name__)
+logger.setLevel(level=logging.INFO)
+handler = logging.FileHandler("数据拆分.log")
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
 
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+
+logger.addHandler(handler)
+logger.addHandler(console)
 # info -> 每个API的单独数据
 
 # externalDocs -> 文档信息
@@ -26,21 +39,123 @@ from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 
-# 定义User对象:
-class User(Base):
-    # 表的名字:
-    __tablename__ = 'user'
+class Info(Base):
+    __tablename__ = 'info'
+    id = Column(Integer, primary_key=True)
+    version = Column(String)
+    basePath = Column(String)
+    host = Column(String)
+    termsOfService = Column(String)
+    title = Column(String)
+    schemes = Column(String)
+    paths = Column(String)
+    domain_key = Column(String)
 
+
+class Uri(Base):
+    # 表的名字:
+    __tablename__ = 'uri'
     # 表的结构:
-    id = Column(String(20), primary_key=True)
-    name = Column(String(20))
+    id = Column(Integer)
+    uri = Column(String, primary_key=True)
+    method_count = Column(Integer)
+    info_id = Column(Integer, primary_key=True)
+    version = Column(String)
+    title = Column(String)
+
+
+class Method(Base):
+    # 表的名字:
+    __tablename__ = 'method'
+    # 表的结构:
+    id = Column(Integer)
+    uri_id = Column(Integer)
+    uri = Column(String, primary_key=True)
+    method = Column(String, primary_key=True)
+    info_id = Column(Integer)
+    description = Column(String)
+    has_param = Column(Integer)
+    request = Column(JSON)
+    request_count = Column(Integer)
+    response = Column(JSON)
+
+
+class Request(Base):
+    # 表的名字:
+    __tablename__ = 'request'
+    # 表的结构:
+    id = Column(Integer)
+    info_id = Column(Integer)
+    uri_id = Column(Integer)
+    uri = Column(String, primary_key=True)
+    method_id = Column(Integer)
+    method = Column(String, primary_key=True)
+    name = Column(String, primary_key=True)
+    description = Column(String)
+    required = Column(Integer)
+    type = Column(String)
+    _in = Column(String)
+    minimum = Column(String)
+    maximum = Column(String)
+    format = Column(String)
+    pattern = Column(String)
+    schema = Column(JSON)
+
+
+class Response(Base):
+    # 表的名字:
+    __tablename__ = 'response'
+    # 表的结构:
+    id = Column(Integer)
+    info_id = Column(Integer, primary_key=True)
+    uri_id = Column(Integer)
+    uri = Column(String, primary_key=True)
+    method_id = Column(Integer)
+    method = Column(String, primary_key=True)
+    code = Column(String, primary_key=True)
+    description = Column(String)
+    schema = Column(JSON)
 
 
 # definitions -> 数据定义
 
 # parameters -> 变量的结构及信息
 
-def clean_data_logic(origin, data, path=None):
+def alter_column(temp_session, alter_table, alter_table_name, alter_column_name, column_data_type):
+    data = temp_session.execute(f'SELECT 1 '
+                                f'FROM INFORMATION_SCHEMA.COLUMNS '
+                                f'WHERE `TABLE_NAME` = "{alter_table_name}" '
+                                f'AND `TABLE_SCHEMA` = "api_swagger_source" '
+                                f'AND `COLUMN_NAME` = "{alter_column_name}"')
+    column_type = String
+    if column_data_type != str:
+        column_type = JSON
+    if data.rowcount is 0:
+        temp_session.execute(f'ALTER TABLE `{alter_table_name}` ADD `{alter_column_name}` mediumtext;')
+    try:
+        setattr(alter_table, f'{alter_column_name}', Column(column_type))
+    except:
+        pass
+
+
+def clean_transform_means_logic(data):
+    if type(data) != dict and type(data) != list:
+        if type(data) == str:
+            return data.replace('\\"', "'").replace('"', "'").replace('\\', '\\\\')
+        return data
+    result = None
+    if type(data) == dict:
+        result = {}
+        for key in data:
+            result[key] = clean_transform_means_logic(data[key])
+    elif type(data) == list:
+        result = []
+        for elem in data:
+            result.append(clean_transform_means_logic(elem))
+    return result
+
+
+def clean_ref_data_logic(origin, data, path=None):
     """
         :param origin: 传入的原数据
         :param data: 递归调用的传递数据
@@ -66,12 +181,13 @@ def clean_data_logic(origin, data, path=None):
                 if f'{node}/' in f"{path}":
                     return data
                 if has_ref:
-                    data['$ref'] = clean_data_logic(origin, temp, f"{path}{node}/")
+                    ref = clean_ref_data_logic(origin, temp, f"{path}{node}/")
+                    data['$ref'] = ref
                 return data
             elif item_name == '$ref' and type(data[item_name]) != str:
                 return data
             elif item_name not in filter_list:
-                data[item_name] = clean_data_logic(origin, data[item_name], f"{path}{item_name}/")
+                data[item_name] = clean_ref_data_logic(origin, data[item_name], f"{path}{item_name}/")
     else:
         i = 0
         for item in data:
@@ -84,9 +200,9 @@ def clean_data_logic(origin, data, path=None):
                     if not temp:
                         return data
                 if has_ref:
-                    data[item] = clean_data_logic(origin, temp, f"{path}{i}/")
+                    data[item] = clean_ref_data_logic(origin, temp, f"{path}{i}/")
             else:
-                data[i] = clean_data_logic(origin, data[i], f"{path}{i}/")
+                data[i] = clean_ref_data_logic(origin, data[i], f"{path}{i}/")
             i += 1
     return data
 
@@ -167,18 +283,124 @@ def convert(host, username, password, database):
     :return:
     """
     # 建立链接
+    logger.info('建立连接')
     engine = create_engine(f'mysql://{username}:{password}@{host}/{database}')
-
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
     # 创建指针
-    result_proxy = session.execute("SELECT paths FROM info")
-    result = result_proxy.fetchall()
-    api = result[0].items()[0][1]
+    info_list = session.query(Info).all()
+    uri_id = 1
+    method_id = 1
+    request_id = 1
+    response_id = 1
+    info_count = 1
+    for info_pojo in info_list:
+        logger.info(f'[{info_pojo.id}] 开始处理编号为{info_pojo.id}的文档「{info_pojo.domain_key}」')
+        try:
+            paths = json.loads(info_pojo.paths.replace("\\", "\\\\"), strict=False)
+            logger.info(f'[{info_pojo.id}] 开始匹配资源路径，编号从{uri_id}开始，预计处理{len(paths)}条。')
+            for uri_str in paths:
+                try:
+                    uri = paths[uri_str]
+                    if 'parameters' in uri:
+                        del uri['parameters']
+                    uri_pojo = Uri(
+                        id=uri_id,
+                        uri=uri_str,
+                        method_count=len(uri),
+                        version=json.loads(info_pojo.version),
+                        title=json.loads(info_pojo.title),
+                        info_id=info_pojo.id
+                    )
+                    uri_id += 1
+                    session.add(uri_pojo)
+                    logger.debug(f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词，编号从{method_id}开始，预计处理{len(uri)}条。')
+                    for method_str in uri:
+                        try:
+                            methods = uri[method_str]
+                            method_pojo = Method(
+                                id=method_id,
+                                method=method_str,
+                                description=methods.get('description'),
+                                has_param=1 if (methods.get('parameters') and len(methods.get('parameters')) > 0) else 0,
+                                request=json.dumps(methods.get('parameters')),
+                                request_count=len(methods.get('parameters')) if methods.get(
+                                    'parameters') is not None else 0,
+                                response=json.dumps(methods.get('responses')),
+                                uri_id=uri_pojo.id,
+                                info_id=info_pojo.id,
+                                uri=uri_pojo.uri
+                            )
+                            method_id += 1
+                            session.add(method_pojo)
+                            if "responses" in methods:
+                                responses = methods['responses']
+                                logger.debug(f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词[{method_pojo.method}]的response，编号从{response_id}开始，预计处理{len(responses)}条。')
+                                for response_code in responses:
+                                    try:
+                                        response = responses[response_code]
+                                        response_pojo = Response(
+                                            id=response_id,
+                                            info_id=info_pojo.id,
+                                            uri_id=uri_pojo.id,
+                                            uri=uri_pojo.uri,
+                                            method_id=method_pojo.id,
+                                            method=method_pojo.method,
+                                            code=response_code,
+                                            description=response.get('description')
+                                        )
+                                        if "schema" in response and "$ref" in response["schema"] and type(response["schema"]['$ref']) != str:
+                                            response_pojo.__setattr__('schema', response["schema"]['$ref'])
+                                        elif "schema" in response:
+                                            response_pojo.__setattr__('schema', response["schema"])
+                                        response_id += 1
+                                        session.add(response_pojo)
+                                    except:
+                                        logger.exception(f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] -> res[{response_pojo.code}]出现错误 ->  {sys.exc_info()}]")
+
+                            if "parameters" in methods:
+                                parameters = methods['parameters']
+                                logger.debug(f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词[{method_pojo.method}]的request，编号从{request_id}开始，预计处理{len(responses)}条。')
+                                for param_elem in parameters:
+                                    try:
+                                        if "$ref" in param_elem:
+                                            param_elem = param_elem['$ref']
+                                        request_pojo = Request(
+                                            id=request_id,
+                                            info_id=info_pojo.id,
+                                            uri_id=uri_pojo.id,
+                                            uri=uri_pojo.uri,
+                                            method_id=method_pojo.id,
+                                            method=method_pojo.method,
+                                            _in=param_elem.get('in')
+                                        )
+                                        if param_elem.get("schema") and param_elem.get("schema").get('$ref') and type(
+                                                param_elem.get("schema").get('$ref')) != str:
+                                            request_pojo.__setattr__('schema', param_elem.get("schema").get('$ref'))
+                                        elif "schema" in param_elem:
+                                            request_pojo.__setattr__('schema', param_elem.get("schema"))
+                                        column_filter_list = ['id', 'info_id', 'uri_id', 'uri', 'method_id', 'method', 'in', 'schema']
+                                        for param_elem_name in param_elem:
+                                            if param_elem_name not in column_filter_list:
+                                                alter_column(session, Request, "request", param_elem_name,
+                                                             type(param_elem[param_elem_name]))
+                                                request_pojo.__setattr__(param_elem_name, param_elem[param_elem_name])
+                                        request_id += 1
+                                        session.add(request_pojo)
+                                    except:
+                                        logger.exception(f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] -> req出现错误 ->  {sys.exc_info()}]")
+                        except:
+                            logger.exception(f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] 执行错误 ->  {sys.exc_info()}]")
+                except:
+                    logger.exception(f"[{info_pojo.id}][{uri_pojo.uri}] 执行错误 ->  {sys.exc_info()}]")
+        except:
+            logger.exception(f"[{info_pojo.id}] 执行错误 ->  {sys.exc_info()}]")
+        info_count += 1
+    session.commit()
+    session.close()
 
 
-
-# convert('localhost', 'root', 'root', 'api_swagger_source')
+convert('localhost', 'root', 'root', 'api_swagger_source')
 
 
 def insert(data, host, username, password, database, build=False):
@@ -191,6 +413,7 @@ def insert(data, host, username, password, database, build=False):
     :param build: 是否初始化数据库
     :return: void
     """
+    logger.info('建立数据库连接...')
     if build:
         build_table(data, host, username, password, database)
     # 建立链接
@@ -208,7 +431,7 @@ def insert(data, host, username, password, database, build=False):
         domain_key = domain_key + data['basePath']
     if data.get('file_path') and 'APIs' in data['file_path']:
         domain_key = domain_key + '|' + data['file_path'].split('APIs')[1].replace('/swagger.yaml', '')
-    insert_data = {'domain_key': domain_key.replace('\\', '\\\\')}
+    insert_data = {'domain_key': domain_key}
     # 创建指针
     cursor = db.cursor()
     # 包装info
@@ -221,7 +444,10 @@ def insert(data, host, username, password, database, build=False):
             if column_name != 'info':
                 insert_data[column_name] = data[column_name]
     # 清洗data
-    insert_data = clean_data_logic(insert_data, insert_data, path='$ref/')
+    logger.info('清洗data的ref')
+    insert_data = clean_ref_data_logic(insert_data, insert_data, path='$ref/')
+    logger.info('清洗data的特殊字符')
+    insert_data = clean_transform_means_logic(insert_data)
     # insert时的字段字符串
     column_text = ''
     # insert时的数据字符串
@@ -236,16 +462,17 @@ def insert(data, host, username, password, database, build=False):
         column_text = column_text + f'{temp_column_name},'
         # temp_data 作临时转存
         temp_data = insert_data[column_name]
-        if type(temp_data) is not str:
-            temp_data = json.dumps(temp_data, ensure_ascii=False)
-        temp_data = temp_data.replace("'", '"').replace('"', '"')
+        temp_data = json.dumps(temp_data, check_circular=False, ensure_ascii=False) \
+            .replace('"', '\\"') \
+            .replace("\n", "") \
+            .replace("'", "\\'")
         # data_text是insert时，要添加的数据部分
         data_text = data_text + f"'{temp_data}',"
         # update_text时update时，要更改的部分字符串
         update_text = update_text + temp_column_name + "='" + temp_data + "',"
     # 查询是否存在
-    sql = 'SELECT id FROM info WHERE domain_key = "' + insert_data['domain_key'] + '" AND version ="' + insert_data[
-        'version'] + '"'
+    sql = "SELECT id FROM info WHERE domain_key = '" + insert_data['domain_key'] + "' AND version ='" + insert_data['version'] + "'"
+
     # 提交
     cursor.execute(sql)
     # 获取结果
@@ -255,14 +482,15 @@ def insert(data, host, username, password, database, build=False):
         sql = f'INSERT INTO info({column_text[:-1]}) VALUES({data_text[:-1]})'
     else:
         sql = f'UPDATE info SET {update_text[:-1]} WHERE id={result[0]}'
-        # print(insert_data['domain_key'] + " " + insert_data['version'] + " " + insert_data['title'])
+    # print(insert_data['domain_key'] + " " + insert_data['version'] + " " + insert_data['title'])
+    # logger.info(f'执行sql:[{sql}]')
     try:
         # 执行sql语句
         cursor.execute(sql)
         # 提交到数据库执行
         db.commit()
     except Exception as e:
-        print('插入异常 -> ' + insert_data['host'])
-        print(e)
+        logger.error('插入异常 -> ' + insert_data['host'])
+        logger.error(e)
         db.rollback()
     db.close()
