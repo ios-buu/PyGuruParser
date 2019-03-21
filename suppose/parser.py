@@ -8,9 +8,11 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 import logging
 import sys
+import time
+log_name = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-handler = logging.FileHandler("数据拆分.log")
+handler = logging.FileHandler(f"{log_name} parser.log")
 handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
@@ -25,7 +27,7 @@ logger.addHandler(console)
 # externalDocs -> 文档信息
 
 # host -> 根目录
-
+logger.info("test")
 # basePath -> 当前文档在host中的目录
 
 # schemes -> 可访问的协议
@@ -398,9 +400,6 @@ def convert(host, username, password, database):
         info_count += 1
     session.commit()
     session.close()
-
-
-convert('localhost', 'root', 'root', 'api_swagger_source')
 
 
 def insert(data, host, username, password, database, build=False):
