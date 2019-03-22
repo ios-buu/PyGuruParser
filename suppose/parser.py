@@ -4,7 +4,8 @@ import MySQLdb
 import re
 import json
 from sqlalchemy import Column, String, Integer, Text, CLOB, JSON, create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
+from sqlalchemy.orm import sessionmaker,mapper
 from sqlalchemy.ext.declarative import declarative_base
 import logging
 import sys
@@ -27,7 +28,7 @@ logger.addHandler(console)
 # externalDocs -> 文档信息
 
 # host -> 根目录
-logger.info("test")
+
 # basePath -> 当前文档在host中的目录
 
 # schemes -> 可访问的协议
@@ -85,6 +86,7 @@ class Method(Base):
 class Request(Base):
     # 表的名字:
     __tablename__ = 'request'
+    __table_args__ = {"useexisting": True}
     # 表的结构:
     id = Column(Integer)
     info_id = Column(Integer)
@@ -123,19 +125,26 @@ class Response(Base):
 
 # parameters -> 变量的结构及信息
 
-def alter_column(temp_session, alter_table, alter_table_name, alter_column_name, column_data_type):
+def list_to_string(list):
+    result = ""
+    for elem in list:
+        if type(elem) is list or type(elem) is dict:
+            return list
+        result+=(str(elem) + ',')
+    return result[:-1]
+def alter_column(temp_session, alter_table, alter_table_name, alter_column_name, column_data_type, database):
     data = temp_session.execute(f'SELECT 1 '
                                 f'FROM INFORMATION_SCHEMA.COLUMNS '
                                 f'WHERE `TABLE_NAME` = "{alter_table_name}" '
-                                f'AND `TABLE_SCHEMA` = "api_swagger_source" '
+                                f'AND `TABLE_SCHEMA` = "{database}" '
                                 f'AND `COLUMN_NAME` = "{alter_column_name}"')
-    column_type = String
+    column_type = MEDIUMTEXT
     if column_data_type != str:
         column_type = JSON
     if data.rowcount is 0:
-        temp_session.execute(f'ALTER TABLE `{alter_table_name}` ADD `{alter_column_name}` mediumtext;')
+        temp_session.execute(f'ALTER TABLE `{alter_table_name}` ADD `{alter_column_name}` mediumtext default "";')
     try:
-        setattr(alter_table, f'{alter_column_name}', Column(column_type))
+        setattr(alter_table, f'{alter_column_name}', Column(column_type,default=""))
     except:
         pass
 
@@ -296,6 +305,8 @@ def convert(host, username, password, database):
     request_id = 1
     response_id = 1
     info_count = 1
+    request_field = ['id','info_id','uri_id','uri','method_id','type','method','name','description','required','_in','in','minimum','maximum','format','pattern','schema']
+
     for info_pojo in info_list:
         logger.info(f'[{info_pojo.id}] 开始处理编号为{info_pojo.id}的文档「{info_pojo.domain_key}」')
         try:
@@ -326,8 +337,7 @@ def convert(host, username, password, database):
                                 description=methods.get('description'),
                                 has_param=1 if (methods.get('parameters') and len(methods.get('parameters')) > 0) else 0,
                                 request=json.dumps(methods.get('parameters')),
-                                request_count=len(methods.get('parameters')) if methods.get(
-                                    'parameters') is not None else 0,
+                                request_count=len(methods.get('parameters')) if methods.get('parameters') is not None else 0,
                                 response=json.dumps(methods.get('responses')),
                                 uri_id=uri_pojo.id,
                                 info_id=info_pojo.id,
@@ -373,34 +383,45 @@ def convert(host, username, password, database):
                                             uri_id=uri_pojo.id,
                                             uri=uri_pojo.uri,
                                             method_id=method_pojo.id,
-                                            method=method_pojo.method,
-                                            _in=param_elem.get('in')
+                                            method=method_pojo.method
                                         )
+                                        if type(param_elem) is not dict:
+                                            request_pojo.__setattr__('schema',param_elem)
+                                            continue
+                                        request_pojo.__setattr__('_in', param_elem.get('in'))
+                                        request_pojo.__setattr__('name',"None" if param_elem.get('name')else param_elem['name'])
                                         if param_elem.get("schema") and param_elem.get("schema").get('$ref') and type(
                                                 param_elem.get("schema").get('$ref')) != str:
                                             request_pojo.__setattr__('schema', param_elem.get("schema").get('$ref'))
                                         elif "schema" in param_elem:
                                             request_pojo.__setattr__('schema', param_elem.get("schema"))
-                                        column_filter_list = ['id', 'info_id', 'uri_id', 'uri', 'method_id', 'method', 'in', 'schema']
+
                                         for param_elem_name in param_elem:
-                                            if param_elem_name not in column_filter_list:
-                                                alter_column(session, Request, "request", param_elem_name,
-                                                             type(param_elem[param_elem_name]))
-                                                request_pojo.__setattr__(param_elem_name, param_elem[param_elem_name])
+                                            temp_param_elem_name = param_elem_name.replace('-','_')
+                                            if param_elem_name not in request_field:
+                                                alter_column(session, Request, "request", temp_param_elem_name, type(param_elem[param_elem_name]),database)
+                                                Base.metadata.create_all(engine)
+                                                request_field.append(param_elem_name)
+                                                request_field.append(temp_param_elem_name)
+                                            insert_elem = param_elem[param_elem_name]
+                                            if type(param_elem[param_elem_name])==list:
+                                                insert_elem = list_to_string(param_elem[param_elem_name])
+                                            request_pojo.__setattr__(temp_param_elem_name, insert_elem)
                                         request_id += 1
                                         session.add(request_pojo)
+
                                     except:
                                         logger.exception(f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] -> req出现错误 ->  {sys.exc_info()}]")
                         except:
                             logger.exception(f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] 执行错误 ->  {sys.exc_info()}]")
                 except:
                     logger.exception(f"[{info_pojo.id}][{uri_pojo.uri}] 执行错误 ->  {sys.exc_info()}]")
+            session.commit()
         except:
             logger.exception(f"[{info_pojo.id}] 执行错误 ->  {sys.exc_info()}]")
         info_count += 1
-    session.commit()
     session.close()
-
+convert('localhost','root','root','api_swagger_source')
 
 def insert(data, host, username, password, database, build=False):
     """
