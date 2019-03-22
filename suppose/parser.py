@@ -14,7 +14,7 @@ log_name = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
 handler = logging.FileHandler(f"{log_name} parser.log")
-handler.setLevel(logging.DEBUG)
+handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 
@@ -327,7 +327,7 @@ def convert(host, username, password, database):
                     )
                     uri_id += 1
                     session.add(uri_pojo)
-                    logger.debug(f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词，编号从{method_id}开始，预计处理{len(uri)}条。')
+                    logger.info(f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词，编号从{method_id}开始，预计处理{len(uri)}条。')
                     for method_str in uri:
                         try:
                             methods = uri[method_str]
@@ -347,7 +347,7 @@ def convert(host, username, password, database):
                             session.add(method_pojo)
                             if "responses" in methods:
                                 responses = methods['responses']
-                                logger.debug(f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词[{method_pojo.method}]的response，编号从{response_id}开始，预计处理{len(responses)}条。')
+                                logger.info(f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词[{method_pojo.method}]的response，编号从{response_id}开始，预计处理{len(responses)}条。')
                                 for response_code in responses:
                                     try:
                                         response = responses[response_code]
@@ -372,7 +372,7 @@ def convert(host, username, password, database):
 
                             if "parameters" in methods:
                                 parameters = methods['parameters']
-                                logger.debug(f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词[{method_pojo.method}]的request，编号从{request_id}开始，预计处理{len(responses)}条。')
+                                logger.info(f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词[{method_pojo.method}]的request，编号从{request_id}开始，预计处理{len(responses)}条。')
                                 for param_elem in parameters:
                                     try:
                                         if "$ref" in param_elem:
@@ -421,6 +421,7 @@ def convert(host, username, password, database):
             logger.exception(f"[{info_pojo.id}] 执行错误 ->  {sys.exc_info()}]")
         info_count += 1
     session.close()
+    logger.info(f'本次共遍历info数据{info_count}条，解析出来uri{uri_id}个,method{method_id}个,request{request_id}个,response{response_id}个')
 convert('localhost','root','root','api_swagger_source')
 
 def insert(data, host, username, password, database, build=False):
