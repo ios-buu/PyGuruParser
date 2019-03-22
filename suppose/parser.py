@@ -141,9 +141,9 @@ def alter_column(temp_session, alter_table, alter_table_name, alter_column_name,
     if column_data_type != str:
         column_type = JSON
     if data.rowcount is 0:
-        temp_session.execute(f'ALTER TABLE `{alter_table_name}` ADD `{alter_column_name}` mediumtext default "";')
+        temp_session.execute(f"ALTER TABLE `{alter_table_name}` ADD `{alter_column_name}` mediumtext default '';")
     try:
-        setattr(alter_table, f'{alter_column_name}', Column(column_type,default=""))
+        setattr(alter_table, f'{alter_column_name}', Column(column_type))
     except:
         pass
 
