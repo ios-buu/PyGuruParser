@@ -1,6 +1,5 @@
 # code=utf-8
 
-import MySQLdb
 import re
 import json
 from sqlalchemy import Column, String, Integer, Text, CLOB, JSON, create_engine
@@ -228,17 +227,12 @@ def build_table(data, host, username, password, database):
     :return: void
     """
     # 建立链接
-    db = MySQLdb.connect(
-        host,
-        username,
-        password,
-        database,
-        charset="utf8"
-    )
+    engine = create_engine(f'mysql://{username}:{password}@{host}/{database}')
+    session_factory = sessionmaker(bind=engine)
+    session = session_factory()
     # 创建指针
-    cursor = db.cursor()
     # 创建信息表
-    cursor.execute("CREATE TABLE IF NOT EXISTS info("
+    session.execute("CREATE TABLE IF NOT EXISTS info("
                    "id INT PRIMARY KEY AUTO_INCREMENT,"
                    "domain_key VARCHAR(512) NOT NULL,"
                    "version VARCHAR(64),"
@@ -250,22 +244,21 @@ def build_table(data, host, username, password, database):
     # 静态的预设字段
     static_column_list = ['id', 'version', 'title', 'description', 'x-logo']
     # 提交一次
-    cursor.fetchone()
+    session.flush()
     # 提取info中的字段
     if data.get('info'):
         for column_name in data['info']:
             # 判断是否属于上面的静态字段
             if column_name not in static_column_list:
                 column_name = column_name.replace('-', '_')
-                result = cursor.execute(f'SELECT 1 '
-                                        f'FROM INFORMATION_SCHEMA.COLUMNS '
-                                        f'WHERE `TABLE_NAME` = "info" '
-                                        f'AND `TABLE_SCHEMA` = "api_swagger_source" '
-                                        f'AND `COLUMN_NAME` = "{column_name}"')
-                # 如果不存在字段
-                if result is 0:
-                    # 创建字段
-                    cursor.execute(f'ALTER TABLE `info` ADD `{column_name}` text;')
+                data = session.execute(f'SELECT 1 '
+                                            f'FROM INFORMATION_SCHEMA.COLUMNS '
+                                            f'WHERE `TABLE_NAME` = "info" '
+                                            f'AND `TABLE_SCHEMA` = "{database}" '
+                                            f'AND `COLUMN_NAME` = "{column_name}"')
+
+                if data.rowcount is 0:
+                    session.execute(f'ALTER TABLE `info` ADD `{column_name}` mediumtext default "";')
 
     # 静态的预设字段
     static_column_list = ['info']
@@ -274,15 +267,16 @@ def build_table(data, host, username, password, database):
     for column_name in data:
         if column_name not in static_column_list:
             column_name = column_name.replace('-', '_')
-            data = cursor.execute(f'SELECT 1 '
-                                  f'FROM INFORMATION_SCHEMA.COLUMNS '
-                                  f'WHERE `TABLE_NAME` = "info" '
-                                  f'AND `TABLE_SCHEMA` = "api_swagger_source" '
-                                  f'AND `COLUMN_NAME` = "{column_name}"')
-            if data is 0:
-                cursor.execute(f'ALTER TABLE `info` ADD `{column_name}` mediumtext;')
-    cursor.fetchall()
-    db.close()
+            data = session.execute(f'SELECT 1 '
+                                   f'FROM INFORMATION_SCHEMA.COLUMNS '
+                                   f'WHERE `TABLE_NAME` = "info" '
+                                   f'AND `TABLE_SCHEMA` = "{database}" '
+                                   f'AND `COLUMN_NAME` = "{column_name}"')
+
+            if data.rowcount is 0:
+                session.execute(f'ALTER TABLE `info` ADD `{column_name}` mediumtext default "";')
+    session.commit()
+    session.close()
 
 
 def convert(host, username, password, database):
@@ -439,13 +433,10 @@ def insert(data, host, username, password, database, build=False):
         build_table(data, host, username, password, database)
     # 建立链接
 
-    db = MySQLdb.connect(
-        host,
-        username,
-        password,
-        database,
-        charset="utf8"
-    )
+        # 建立链接
+    engine = create_engine(f'mysql://{username}:{password}@{host}/{database}')
+    session_factory = sessionmaker(bind=engine)
+    session = session_factory()
     # 创建空间
     domain_key = data['host']
     if data.get('basePath'):
@@ -454,7 +445,6 @@ def insert(data, host, username, password, database, build=False):
         domain_key = domain_key + '|' + data['file_path'].split('APIs')[1].replace('/swagger.yaml', '')
     insert_data = {'domain_key': domain_key}
     # 创建指针
-    cursor = db.cursor()
     # 包装info
     if data.get('info'):
         for column_name in data['info']:
@@ -495,11 +485,10 @@ def insert(data, host, username, password, database, build=False):
     sql = "SELECT id FROM info WHERE domain_key = '" + insert_data['domain_key'] + "' AND version ='" + insert_data['version'] + "'"
 
     # 提交
-    cursor.execute(sql)
+    result = session.execute(sql)
     # 获取结果
-    result = cursor.fetchone()
     # 不存在 -> insert | 存在 -> update
-    if not result:
+    if result.rowcount is 0:
         sql = f'INSERT INTO info({column_text[:-1]}) VALUES({data_text[:-1]})'
     else:
         sql = f'UPDATE info SET {update_text[:-1]} WHERE id={result[0]}'
@@ -507,11 +496,11 @@ def insert(data, host, username, password, database, build=False):
     # logger.info(f'执行sql:[{sql}]')
     try:
         # 执行sql语句
-        cursor.execute(sql)
+        session.execute(sql)
         # 提交到数据库执行
-        db.commit()
+        session.commit()
     except Exception as e:
         logger.error('插入异常 -> ' + insert_data['host'])
         logger.error(e)
-        db.rollback()
-    db.close()
+        session.rollback()
+    session.close()
