@@ -1,8 +1,7 @@
 # code=utf-8
 
-import re
 import json
-from sqlalchemy import Column, String, Integer, Text, CLOB, JSON, create_engine
+from sqlalchemy import Column, String, Integer, JSON, create_engine
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import sessionmaker,mapper
 from sqlalchemy.ext.declarative import declarative_base
