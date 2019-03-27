@@ -8,6 +8,9 @@ from sqlalchemy.ext.declarative import declarative_base
 import logging
 import sys
 import time
+from suppose import parser as p, scanner
+import yaml
+
 log_name = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
@@ -415,7 +418,7 @@ def convert(host, username, password, database):
         info_count += 1
     session.close()
     logger.info(f'本次共遍历info数据{info_count}条，解析出来uri{uri_id}个,method{method_id}个,request{request_id}个,response{response_id}个')
-convert('localhost','root','root','api_swagger_source')
+# convert('localhost','root','root','api_swagger_source')
 
 def insert(data, host, username, password, database, build=False):
     """
@@ -479,7 +482,7 @@ def insert(data, host, username, password, database, build=False):
         # data_text是insert时，要添加的数据部分
         data_text = data_text + f"'{temp_data}',"
         # update_text时update时，要更改的部分字符串
-        update_text = update_text + temp_column_name + "='" + temp_data + "',"
+        update_text = update_text + temp_column_name + f"='{temp_data}',"
     # 查询是否存在
     sql = "SELECT id FROM info WHERE domain_key = '" + insert_data['domain_key'] + "' AND version ='" + insert_data['version'] + "'"
 
@@ -503,3 +506,21 @@ def insert(data, host, username, password, database, build=False):
         logger.error(e)
         session.rollback()
     session.close()
+
+def auto(file_path,host, username, password, database,swagger_file_name='swagger.yaml'):
+    file_paths = scanner.scan(file_path, match_file_name=swagger_file_name)
+    file_paths = sorted(file_paths)
+    i = 0
+    for path in file_paths:
+        i += 1
+        logger.info(f"{i}\t开始读取{path}")
+        try:
+            with open(path, 'r', encoding='utf-8') as file:
+                text = file.read()
+                data = yaml.load(text)
+                data['file_path'] = path
+                insert(data, host, username, password,database, build=True)
+        except Exception as e:
+            logger.error("执行错误 -> " + path)
+            logger.error(e)
+    convert(host, username, password, database)
