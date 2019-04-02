@@ -180,7 +180,7 @@ def count_request_param(data_set):
 
 def count_request_param_location(data_set):
     """
-    请求参数的位置统计，[['query','/user/{id}',info_id],['param','/user/{id}',info_id]]
+    请求参数的位置统计，[['query','/user/{id}',info_id,'get'],['param','/user/{id}',info_id,'get']]
     :param data_set:
     :return:
     (['query', 'param'], [0, 1, 2], [[0, 1, 1], [0, 0, 1]], [0, 1, 2], [0, 1, 1])
@@ -196,7 +196,7 @@ def count_request_param_location(data_set):
     maximum_param = 0
     for elem in data_set:
         location = elem[0]
-        api = str(elem[2]) + '<::>'+elem[1]
+        api = f'{str(elem[2])}<::>{str(elem[3])}<::>{elem[1]}'
         api_count_map = {}
         if location in api_in_location_count_map:
             api_count_map = api_in_location_count_map[location]
@@ -237,7 +237,7 @@ def count_request_param_location(data_set):
     for location in api_in_location_count_map:
         api_count_map = api_in_location_count_map[location]
         for api in api_count_map:
-            param_count_list_list[location_index_map[location]][api_count_map[api]] += 1
+            param_count_list_list[api_count_map[api]][location_index_map[location]] += 1
     for location_set in api_map:
         location_count_list[len(api_map[location_set])] +=1
 
