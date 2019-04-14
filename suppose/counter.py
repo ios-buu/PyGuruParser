@@ -350,8 +350,4 @@ def count_endpoint(data_set):
     for index in range(0,len(endpoint_count_list)):
         endpoint_index_list.append(index)
     average = total / len(endpoint_map)
-    print(endpoint_index_list)
-    print(endpoint_count_list)
-    print(len(endpoint_index_list))
-    print(len(endpoint_count_list))
     return total,average,maximum,minimum,endpoint_index_list,endpoint_count_list
