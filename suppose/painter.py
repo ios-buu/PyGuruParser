@@ -241,4 +241,3 @@ def print_request_param_location(username,password,host,database):
     plt.legend([p1[0]],['total'],  loc='upper right')
     plt.show()
     plt.close()
-print_endpoint("root","root","localhost","api_swagger_source")
