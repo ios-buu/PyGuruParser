@@ -13,7 +13,7 @@ def scan(path, match_file_name=None):
                 if match_file_name is None or file_name == match_file_name:
                     file_list.add(path + "/" + file_name)
             else:
-                file_list = scan(path + "/" + file_name,match_file_name) | file_list
+                file_list = scan(path + "/" + file_name, match_file_name) | file_list
     return file_list
 
-# data = scan('/Users/canfuu/Documents/python/code/final_project/openapi-directory',match_file_name='swagger.yaml')
+    # data = scan('/Users/canfuu/Documents/python/code/final_project/openapi-directory',match_file_name='swagger.yaml')

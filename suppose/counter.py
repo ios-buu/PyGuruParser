@@ -4,7 +4,6 @@ import logging
 import sys
 import time
 
-
 log_name = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
@@ -19,14 +18,16 @@ console.setLevel(logging.INFO)
 logger.addHandler(handler)
 logger.addHandler(console)
 
-def add_elem(data_list,index,element,default=None):
+
+def add_elem(data_list, index, element, default=None):
     if len(data_list) >= index:
-        data_list.insert(index,element)
+        data_list.insert(index, element)
         return data_list
-    for i in range(len(data_list),index):
-        data_list.insert(i,default)
-    data_list.insert(index,element)
+    for i in range(len(data_list), index):
+        data_list.insert(i, default)
+    data_list.insert(index, element)
     return data_list
+
 
 def count_api_layer(data_set):
     """
@@ -43,7 +44,7 @@ def count_api_layer(data_set):
     uri_count_every_layer = []
 
     for uri in data_set:
-        count+=1
+        count += 1
 
         if uri == '/':
             layer = 0
@@ -51,13 +52,13 @@ def count_api_layer(data_set):
             resource = str(uri).split('/')
             layer = len(resource) - 1
 
-        if len(uri_count_every_layer)<=layer:
-            add_elem(uri_count_every_layer,layer,0)
+        if len(uri_count_every_layer) <= layer:
+            add_elem(uri_count_every_layer, layer, 0)
 
-        if layer>=maximum_layer:
+        if layer >= maximum_layer:
             maximum_layer = layer
         if uri_count_every_layer[layer] is not None:
-            uri_count_every_layer[layer] = uri_count_every_layer[layer]+1
+            uri_count_every_layer[layer] = uri_count_every_layer[layer] + 1
         else:
             uri_count_every_layer[layer] = 1
     average_sum = 0
@@ -65,17 +66,18 @@ def count_api_layer(data_set):
     most_count = 0
     for uri_count in uri_count_every_layer:
         if uri_count is not None:
-            if uri_count>most_count:
+            if uri_count > most_count:
                 most_count = uri_count
                 most_layer = layer
             layer_list.append(layer)
             average_sum += (layer * uri_count)
             layer += 1
-    if count==0:
+    if count == 0:
         average = 0
     else:
         average = average_sum / count
     return count, average, most_layer, maximum_layer, layer_list, uri_count_every_layer
+
 
 def count_method(data_set):
     """
@@ -86,14 +88,14 @@ def count_method(data_set):
     method_count = []
     method_list = []
     method_index = 0
-    method_percentage= []
+    method_percentage = []
     method_map = {}
     total = 0
-    maximum = ['get',0]
-    minimum = ['get',10000000]
+    maximum = ['get', 0]
+    minimum = ['get', 10000000]
     for elem in data_set:
         # TODO 2019-03-26 21:16:00 url可以作为其他的分析目前没用
-        url = str(elem[2]) + '<::>'+elem[0]
+        url = str(elem[2]) + '<::>' + elem[0]
         method = elem[1]
         total += 1
         if method not in method_list:
@@ -103,28 +105,33 @@ def count_method(data_set):
             method_index += 1
         else:
             method_count[method_map[method]] += 1
-    for index in range(0,len(method_list)):
+    for index in range(0, len(method_list)):
         count = method_count[index]
         method = method_list[index]
-        method_percentage.append(count/total)
-        if count>maximum[1]:
+        method_percentage.append(count / total)
+        if count > maximum[1]:
             maximum[0] = method
             maximum[1] = count
-        if count<minimum[1]:
+        if count < minimum[1]:
             minimum[0] = method
             minimum[1] = count
-    return maximum,minimum,method_percentage,method_list,method_count
+    return maximum, minimum, method_percentage, method_list, method_count
+
 
 def count_data_layer():
     # TODO 2019-03-26 21:37:00 数据层数不好写.....
     pass
 
+
 def count_version():
     # TODO 2019-03-26 21:37:00 版本统计不好写.....
     pass
+
+
 def count_constrain():
     # TODO 2019-03-26 21:37:00 约束不好写.....
     pass
+
 
 def count_request_param(data_set):
     """
@@ -135,7 +142,7 @@ def count_request_param(data_set):
     api_set = set()
     param_count = 0
     average = 0
-    most = ['default',0]
+    most = ['default', 0]
     param_count_map = {}
     param_count_list = []
     api_count_list = []
@@ -148,36 +155,38 @@ def count_request_param(data_set):
         url = elem[1]
         info_id = elem[2]
         method = elem[3]
-        temp_url = str(info_id)+'<::>'+url+'<::>'+method
+        temp_url = str(info_id) + '<::>' + url + '<::>' + method
         api_set.add(temp_url)
-        param_count +=1
+        param_count += 1
         if temp_url not in param_count_map:
             param_count_map[temp_url] = 1
         else:
-            param_count_map[temp_url] = param_count_map[temp_url] +1
+            param_count_map[temp_url] = param_count_map[temp_url] + 1
         if in_ not in location_map:
             location_map[in_] = location_index
             location_index += 1
             location_list.append(in_)
             location_param_count_list.append(1)
         else:
-            location_param_count_list[location_map[in_]] = location_param_count_list[location_map[in_]]+1
+            location_param_count_list[location_map[in_]] = location_param_count_list[location_map[in_]] + 1
     for uri in param_count_map:
         count = param_count_map[uri]
-        if len(api_count_list)<=count:
-            add_elem(api_count_list,count,1,default=0)
+        if len(api_count_list) <= count:
+            add_elem(api_count_list, count, 1, default=0)
         else:
-            api_count_list[count] = api_count_list[count]+1
-    for index in range(0,location_index):
+            api_count_list[count] = api_count_list[count] + 1
+    for index in range(0, location_index):
         location = location_list[index]
         count = location_param_count_list[index]
-        if count>most[1]:
-            most[0]=location
+        if count > most[1]:
+            most[0] = location
             most[1] = count
-    for index in range(0,len(api_count_list)):
+    for index in range(0, len(api_count_list)):
         param_count_list.append(index)
-    average = param_count/len(api_set)
-    return len(api_set),param_count,average,most,param_count_list,api_count_list,location_list,location_param_count_list
+    average = param_count / len(api_set)
+    return len(
+        api_set), param_count, average, most, param_count_list, api_count_list, location_list, location_param_count_list
+
 
 def count_request_param_location(data_set):
     """
@@ -206,34 +215,34 @@ def count_request_param_location(data_set):
         if api not in api_count_map:
             api_count_map[api] = 1
         else:
-            api_count_map[api]+=1
+            api_count_map[api] += 1
         api_map[api].add(location)
         api_in_location_count_map[location] = api_count_map
     location_list = []
     location_index_map = {}
     location_index = 0
     for url in api_map:
-        if len(api_map[url])>maximum_location:
-            maximum_location= len(api_map[url])
+        if len(api_map[url]) > maximum_location:
+            maximum_location = len(api_map[url])
     for location in api_in_location_count_map:
         for info in api_in_location_count_map[location]:
             location_elem = api_in_location_count_map[location][info]
-            if location_elem>maximum_param:
+            if location_elem > maximum_param:
                 maximum_param = location_elem
         if location not in location_list:
             location_list.append(location)
             location_index_map[location] = location_index
-            location_index+=1
+            location_index += 1
     param_count_list_list = []
     param_count_index_list = []
     location_count_list = []
     location_count_index_list = []
-    for index in range(0,maximum_param+1):
-        param_count_list_list.append(add_elem([],location_index-1, 0, 0))
+    for index in range(0, maximum_param + 1):
+        param_count_list_list.append(add_elem([], location_index - 1, 0, 0))
 
-    for index in range(0,maximum_param+1):
+    for index in range(0, maximum_param + 1):
         param_count_index_list.append(index)
-    for index in range(0, maximum_location+1):
+    for index in range(0, maximum_location + 1):
         location_count_index_list.append(index)
         location_count_list.append(0)
     for location in api_in_location_count_map:
@@ -241,9 +250,10 @@ def count_request_param_location(data_set):
         for api in api_count_map:
             param_count_list_list[api_count_map[api]][location_index_map[location]] += 1
     for location_set in api_map:
-        location_count_list[len(api_map[location_set])] +=1
+        location_count_list[len(api_map[location_set])] += 1
 
-    return location_list,param_count_index_list,param_count_list_list,location_count_index_list,location_count_list
+    return location_list, param_count_index_list, param_count_list_list, location_count_index_list, location_count_list
+
 
 def count_resource(data_set):
     """
@@ -271,18 +281,19 @@ def count_resource(data_set):
     for info_id in resource_map:
         resource_count = len(resource_map[info_id])
         total += resource_count
-        if resource_count>maximum:
+        if resource_count > maximum:
             maximum = resource_count
-        if resource_count<minimum:
+        if resource_count < minimum:
             minimum = resource_count
-        if len(resource_count_list)<=resource_count:
-            add_elem(resource_count_list,resource_count,1,default=0)
+        if len(resource_count_list) <= resource_count:
+            add_elem(resource_count_list, resource_count, 1, default=0)
         else:
-            resource_count_list[resource_count]+=1
-    for index in range(0,len(resource_count_list)):
+            resource_count_list[resource_count] += 1
+    for index in range(0, len(resource_count_list)):
         resource_index_list.append(index)
-    average = total/len(resource_map)
-    return total,average,maximum,minimum,resource_index_list,resource_count_list
+    average = total / len(resource_map)
+    return total, average, maximum, minimum, resource_index_list, resource_count_list
+
 
 def count_uri(data_set):
     """
@@ -305,18 +316,19 @@ def count_uri(data_set):
     for info_id in api_map:
         api_count = len(api_map[info_id])
         total += api_count
-        if api_count> maximum:
+        if api_count > maximum:
             maximum = api_count
-        if api_count<minimum:
+        if api_count < minimum:
             minimum = api_count
-        if len(api_count_list)<=api_count:
-            add_elem(api_count_list,api_count,1,default=0)
+        if len(api_count_list) <= api_count:
+            add_elem(api_count_list, api_count, 1, default=0)
         else:
-            api_count_list[api_count]+=1
-    for index in range(0,len(api_count_list)):
+            api_count_list[api_count] += 1
+    for index in range(0, len(api_count_list)):
         api_index_list.append(index)
     average = total / len(api_map)
-    return total,average,maximum,minimum,api_index_list,api_count_list
+    return total, average, maximum, minimum, api_index_list, api_count_list
+
 
 def count_endpoint(data_set):
     """
@@ -339,15 +351,15 @@ def count_endpoint(data_set):
     for info_id in endpoint_map:
         api_count = len(endpoint_map[info_id])
         total += api_count
-        if api_count> maximum:
+        if api_count > maximum:
             maximum = api_count
-        if api_count<minimum:
+        if api_count < minimum:
             minimum = api_count
-        if len(endpoint_count_list)<=api_count:
-            add_elem(endpoint_count_list,api_count,1,default=0)
+        if len(endpoint_count_list) <= api_count:
+            add_elem(endpoint_count_list, api_count, 1, default=0)
         else:
-            endpoint_count_list[api_count]+=1
-    for index in range(0,len(endpoint_count_list)):
+            endpoint_count_list[api_count] += 1
+    for index in range(0, len(endpoint_count_list)):
         endpoint_index_list.append(index)
     average = total / len(endpoint_map)
-    return total,average,maximum,minimum,endpoint_index_list,endpoint_count_list
+    return total, average, maximum, minimum, endpoint_index_list, endpoint_count_list

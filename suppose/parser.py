@@ -3,7 +3,7 @@
 import json
 from sqlalchemy import Column, String, Integer, JSON, create_engine
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import sessionmaker,mapper
+from sqlalchemy.orm import sessionmaker, mapper
 from sqlalchemy.ext.declarative import declarative_base
 import logging
 import sys
@@ -131,8 +131,10 @@ def list_to_string(list):
     for elem in list:
         if type(elem) is list or type(elem) is dict:
             return list
-        result+=(str(elem) + ',')
+        result += (str(elem) + ',')
     return result[:-1]
+
+
 def alter_column(temp_session, alter_table, alter_table_name, alter_column_name, column_data_type, database):
     data = temp_session.execute(f'SELECT 1 '
                                 f'FROM INFORMATION_SCHEMA.COLUMNS '
@@ -235,14 +237,14 @@ def build_table(data, host, username, password, database):
     # 创建指针
     # 创建信息表
     session.execute("CREATE TABLE IF NOT EXISTS info("
-                   "id INT PRIMARY KEY AUTO_INCREMENT,"
-                   "domain_key VARCHAR(512) NOT NULL,"
-                   "version VARCHAR(64),"
-                   "title VARCHAR(256),"
-                   "description VARCHAR(2048),"
-                   "x_logo VARCHAR(2048),"
-                   " UNIQUE KEY `unique_key_1` (`version`,`domain_key`)"
-                   ")")
+                    "id INT PRIMARY KEY AUTO_INCREMENT,"
+                    "domain_key VARCHAR(512) NOT NULL,"
+                    "version VARCHAR(64),"
+                    "title VARCHAR(256),"
+                    "description VARCHAR(2048),"
+                    "x_logo VARCHAR(2048),"
+                    " UNIQUE KEY `unique_key_1` (`version`,`domain_key`)"
+                    ")")
     # 静态的预设字段
     static_column_list = ['id', 'version', 'title', 'description', 'x-logo']
     # 提交一次
@@ -254,10 +256,10 @@ def build_table(data, host, username, password, database):
             if column_name not in static_column_list:
                 column_name = column_name.replace('-', '_')
                 data = session.execute(f'SELECT 1 '
-                                            f'FROM INFORMATION_SCHEMA.COLUMNS '
-                                            f'WHERE `TABLE_NAME` = "info" '
-                                            f'AND `TABLE_SCHEMA` = "{database}" '
-                                            f'AND `COLUMN_NAME` = "{column_name}"')
+                                       f'FROM INFORMATION_SCHEMA.COLUMNS '
+                                       f'WHERE `TABLE_NAME` = "info" '
+                                       f'AND `TABLE_SCHEMA` = "{database}" '
+                                       f'AND `COLUMN_NAME` = "{column_name}"')
 
                 if data.rowcount is 0:
                     session.execute(f'ALTER TABLE `info` ADD `{column_name}` mediumtext default "";')
@@ -301,7 +303,8 @@ def convert(host, username, password, database):
     request_id = 1
     response_id = 1
     info_count = 1
-    request_field = ['id','info_id','uri_id','uri','method_id','type','method','name','description','required','_in','in','minimum','maximum','format','pattern','schema']
+    request_field = ['id', 'info_id', 'uri_id', 'uri', 'method_id', 'type', 'method', 'name', 'description', 'required',
+                     '_in', 'in', 'minimum', 'maximum', 'format', 'pattern', 'schema']
 
     for info_pojo in info_list:
         logger.info(f'[{info_pojo.id}] 开始处理编号为{info_pojo.id}的文档「{info_pojo.domain_key}」')
@@ -331,9 +334,11 @@ def convert(host, username, password, database):
                                 id=method_id,
                                 method=method_str,
                                 description=methods.get('description'),
-                                has_param=1 if (methods.get('parameters') and len(methods.get('parameters')) > 0) else 0,
+                                has_param=1 if (
+                                methods.get('parameters') and len(methods.get('parameters')) > 0) else 0,
                                 request=json.dumps(methods.get('parameters')),
-                                request_count=len(methods.get('parameters')) if methods.get('parameters') is not None else 0,
+                                request_count=len(methods.get('parameters')) if methods.get(
+                                    'parameters') is not None else 0,
                                 response=json.dumps(methods.get('responses')),
                                 uri_id=uri_pojo.id,
                                 info_id=info_pojo.id,
@@ -343,7 +348,8 @@ def convert(host, username, password, database):
                             session.add(method_pojo)
                             if "responses" in methods:
                                 responses = methods['responses']
-                                logger.info(f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词[{method_pojo.method}]的response，编号从{response_id}开始，预计处理{len(responses)}条。')
+                                logger.info(
+                                    f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词[{method_pojo.method}]的response，编号从{response_id}开始，预计处理{len(responses)}条。')
                                 for response_code in responses:
                                     try:
                                         response = responses[response_code]
@@ -357,18 +363,21 @@ def convert(host, username, password, database):
                                             code=response_code,
                                             description=response.get('description')
                                         )
-                                        if "schema" in response and "$ref" in response["schema"] and type(response["schema"]['$ref']) != str:
+                                        if "schema" in response and "$ref" in response["schema"] and type(
+                                                response["schema"]['$ref']) != str:
                                             response_pojo.__setattr__('schema', response["schema"]['$ref'])
                                         elif "schema" in response:
                                             response_pojo.__setattr__('schema', response["schema"])
                                         response_id += 1
                                         session.add(response_pojo)
                                     except:
-                                        logger.exception(f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] -> res[{response_pojo.code}]出现错误 ->  {sys.exc_info()}]")
+                                        logger.exception(
+                                            f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] -> res[{response_pojo.code}]出现错误 ->  {sys.exc_info()}]")
 
                             if "parameters" in methods:
                                 parameters = methods['parameters']
-                                logger.info(f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词[{method_pojo.method}]的request，编号从{request_id}开始，预计处理{len(responses)}条。')
+                                logger.info(
+                                    f'[{info_pojo.id}] 开始匹配[{uri_pojo.uri}]资源的谓词[{method_pojo.method}]的request，编号从{request_id}开始，预计处理{len(responses)}条。')
                                 for param_elem in parameters:
                                     try:
                                         if "$ref" in param_elem:
@@ -382,10 +391,12 @@ def convert(host, username, password, database):
                                             method=method_pojo.method
                                         )
                                         if type(param_elem) is not dict:
-                                            request_pojo.__setattr__('schema',param_elem)
+                                            request_pojo.__setattr__('schema', param_elem)
                                             continue
                                         request_pojo.__setattr__('_in', param_elem.get('in'))
-                                        request_pojo.__setattr__('name',"None" if param_elem.get('name')else param_elem['name'])
+                                        request_pojo.__setattr__('name',
+                                                                 "None" if param_elem.get('name')else param_elem[
+                                                                     'name'])
                                         if param_elem.get("schema") and param_elem.get("schema").get('$ref') and type(
                                                 param_elem.get("schema").get('$ref')) != str:
                                             request_pojo.__setattr__('schema', param_elem.get("schema").get('$ref'))
@@ -393,23 +404,26 @@ def convert(host, username, password, database):
                                             request_pojo.__setattr__('schema', param_elem.get("schema"))
 
                                         for param_elem_name in param_elem:
-                                            temp_param_elem_name = param_elem_name.replace('-','_')
+                                            temp_param_elem_name = param_elem_name.replace('-', '_')
                                             if param_elem_name not in request_field:
-                                                alter_column(session, Request, "request", temp_param_elem_name, type(param_elem[param_elem_name]),database)
+                                                alter_column(session, Request, "request", temp_param_elem_name,
+                                                             type(param_elem[param_elem_name]), database)
                                                 Base.metadata.create_all(engine)
                                                 request_field.append(param_elem_name)
                                                 request_field.append(temp_param_elem_name)
                                             insert_elem = param_elem[param_elem_name]
-                                            if type(param_elem[param_elem_name])==list:
+                                            if type(param_elem[param_elem_name]) == list:
                                                 insert_elem = list_to_string(param_elem[param_elem_name])
                                             request_pojo.__setattr__(temp_param_elem_name, insert_elem)
                                         request_id += 1
                                         session.add(request_pojo)
 
                                     except:
-                                        logger.exception(f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] -> req出现错误 ->  {sys.exc_info()}]")
+                                        logger.exception(
+                                            f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] -> req出现错误 ->  {sys.exc_info()}]")
                         except:
-                            logger.exception(f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] 执行错误 ->  {sys.exc_info()}]")
+                            logger.exception(
+                                f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] 执行错误 ->  {sys.exc_info()}]")
                 except:
                     logger.exception(f"[{info_pojo.id}][{uri_pojo.uri}] 执行错误 ->  {sys.exc_info()}]")
             session.commit()
@@ -417,7 +431,10 @@ def convert(host, username, password, database):
             logger.exception(f"[{info_pojo.id}] 执行错误 ->  {sys.exc_info()}]")
         info_count += 1
     session.close()
-    logger.info(f'本次共遍历info数据{info_count}条，解析出来uri{uri_id}个,method{method_id}个,request{request_id}个,response{response_id}个')
+    logger.info(
+        f'本次共遍历info数据{info_count}条，解析出来uri{uri_id}个,method{method_id}个,request{request_id}个,response{response_id}个')
+
+
 # convert('localhost','root','root','api_swagger_source')
 
 def insert(data, host, username, password, database, build=False):
@@ -433,7 +450,7 @@ def insert(data, host, username, password, database, build=False):
     logger.info('建立数据库连接...')
     if build:
         build_table(data, host, username, password, database)
-    # 建立链接
+        # 建立链接
 
         # 建立链接
     engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{database}')
@@ -484,7 +501,8 @@ def insert(data, host, username, password, database, build=False):
         # update_text时update时，要更改的部分字符串
         update_text = update_text + temp_column_name + f"='{temp_data}',"
     # 查询是否存在
-    sql = "SELECT id FROM info WHERE domain_key = '" + insert_data['domain_key'] + "' AND version ='" + insert_data['version'] + "'"
+    sql = "SELECT id FROM info WHERE domain_key = '" + insert_data['domain_key'] + "' AND version ='" + insert_data[
+        'version'] + "'"
 
     # 提交
     result = session.execute(sql)
@@ -507,7 +525,8 @@ def insert(data, host, username, password, database, build=False):
         session.rollback()
     session.close()
 
-def auto(file_path,host, username, password, database,swagger_file_name='swagger.yaml'):
+
+def auto(file_path, host, username, password, database, swagger_file_name='swagger.yaml'):
     file_paths = scanner.scan(file_path, match_file_name=swagger_file_name)
     file_paths = sorted(file_paths)
     i = 0
@@ -519,7 +538,7 @@ def auto(file_path,host, username, password, database,swagger_file_name='swagger
                 text = file.read()
                 data = yaml.load(text)
                 data['file_path'] = path
-                insert(data, host, username, password,database, build=True)
+                insert(data, host, username, password, database, build=True)
         except Exception as e:
             logger.error("执行错误 -> " + path)
             logger.error(e)

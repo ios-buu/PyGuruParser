@@ -4,6 +4,7 @@ from suppose import parser, scanner
 import yaml
 import logging
 import time
+
 a_parser = argparse.ArgumentParser(description="p18004 server example")
 a_parser.add_argument('--host')
 a_parser.add_argument('--username')
@@ -13,7 +14,7 @@ args = a_parser.parse_args()
 
 log_name = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 logger = logging.getLogger(__name__)
-logger.setLevel(level = logging.INFO)
+logger.setLevel(level=logging.INFO)
 handler = logging.FileHandler(f"{log_name} handler.log")
 handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -38,7 +39,7 @@ for path in file_paths:
             text = file.read()
             data = yaml.load(text)
             data['file_path'] = path
-            parser.insert(data, args.host,args.username,args.password,args.database, build=True)
+            parser.insert(data, args.host, args.username, args.password, args.database, build=True)
     except Exception as e:
         logger.error("执行错误 -> " + path)
         logger.error(e)

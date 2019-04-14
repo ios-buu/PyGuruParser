@@ -4,6 +4,7 @@ import sys
 import yaml
 import argparse
 from suppose import parser
+
 a_parser = argparse.ArgumentParser(description="p18004 server example")
 a_parser.add_argument('--file')
 a_parser.add_argument('--host')
