@@ -128,7 +128,7 @@ def count_constrain():
 
 def count_request_param(data_set):
     """
-    请求的约束数量，[['query','/user/{id}',info_id],['param','/user/{id}',info_id]]
+    请求参数，[['query','/user/{id}',info_id,'get'],['param','/user/{id}',info_id,'get']]
     :param data_set:
     :return: total,average,['quiry',2000],[1,2,3],[100,200,300],['query','body],[20,50]
     """
@@ -147,7 +147,8 @@ def count_request_param(data_set):
         in_ = elem[0]
         url = elem[1]
         info_id = elem[2]
-        temp_url = str(info_id)+'<::>'+url
+        method = elem[3]
+        temp_url = str(info_id)+'<::>'+url+'<::>'+method
         api_set.add(temp_url)
         param_count +=1
         if temp_url not in param_count_map:
@@ -176,7 +177,7 @@ def count_request_param(data_set):
     for index in range(0,len(api_count_list)):
         param_count_list.append(index)
     average = param_count/len(api_set)
-    return len(api_set),average,most,param_count_list,api_count_list,location_list,location_param_count_list
+    return len(api_set),param_count,average,most,param_count_list,api_count_list,location_list,location_param_count_list
 
 def count_request_param_location(data_set):
     """
@@ -227,8 +228,9 @@ def count_request_param_location(data_set):
     param_count_index_list = []
     location_count_list = []
     location_count_index_list = []
-    for index in range(0,location_index):
-        param_count_list_list.append(add_elem([], maximum_param, 0, 0))
+    for index in range(0,maximum_param+1):
+        param_count_list_list.append(add_elem([],location_index-1, 0, 0))
+
     for index in range(0,maximum_param+1):
         param_count_index_list.append(index)
     for index in range(0, maximum_location+1):
@@ -264,23 +266,25 @@ def count_resource(data_set):
             resource_map[info_id].add('/')
         else:
             for resource in url.split('/'):
-                if "{" not in resource:
+                if "{" not in resource and resource is not '':
                     resource_map[info_id].add(resource)
     for info_id in resource_map:
         resource_count = len(resource_map[info_id])
-        total+= resource_count
+        total += resource_count
         if resource_count>maximum:
             maximum = resource_count
         if resource_count<minimum:
             minimum = resource_count
-        add_elem(resource_count_list,resource_count,0,default=0)
-        resource_count_list[resource_count]+=1
+        if len(resource_count_list)<=resource_count:
+            add_elem(resource_count_list,resource_count,1,default=0)
+        else:
+            resource_count_list[resource_count]+=1
     for index in range(0,len(resource_count_list)):
         resource_index_list.append(index)
     average = total/len(resource_map)
     return total,average,maximum,minimum,resource_index_list,resource_count_list
 
-def count_api(data_set):
+def count_uri(data_set):
     """
     请求api的数量
     :param data_set: [['/user',info_id],['/user/{id}',info_id],['/user/info',info_id],['/user/auth',info_id]]
@@ -305,8 +309,10 @@ def count_api(data_set):
             maximum = api_count
         if api_count<minimum:
             minimum = api_count
-        add_elem(api_count_list,api_count,0,default=0)
-        api_index_list[api_count] +=1
+        if len(api_count_list)<=api_count:
+            add_elem(api_count_list,api_count,1,default=0)
+        else:
+            api_count_list[api_count]+=1
     for index in range(0,len(api_count_list)):
         api_index_list.append(index)
     average = total / len(api_map)
@@ -337,9 +343,15 @@ def count_endpoint(data_set):
             maximum = api_count
         if api_count<minimum:
             minimum = api_count
-        add_elem(endpoint_count_list,api_count,0,default=0)
-        endpoint_index_list[api_count] +=1
+        if len(endpoint_count_list)<=api_count:
+            add_elem(endpoint_count_list,api_count,1,default=0)
+        else:
+            endpoint_count_list[api_count]+=1
     for index in range(0,len(endpoint_count_list)):
         endpoint_index_list.append(index)
     average = total / len(endpoint_map)
+    print(endpoint_index_list)
+    print(endpoint_count_list)
+    print(len(endpoint_index_list))
+    print(len(endpoint_count_list))
     return total,average,maximum,minimum,endpoint_index_list,endpoint_count_list

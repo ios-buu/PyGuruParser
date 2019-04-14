@@ -229,7 +229,7 @@ def build_table(data, host, username, password, database):
     :return: void
     """
     # 建立链接
-    engine = create_engine(f'mysql://{username}:{password}@{host}/{database}')
+    engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{database}')
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
     # 创建指针
@@ -291,7 +291,7 @@ def convert(host, username, password, database):
     """
     # 建立链接
     logger.info('建立连接')
-    engine = create_engine(f'mysql://{username}:{password}@{host}/{database}')
+    engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{database}')
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
     # 创建指针
@@ -436,7 +436,7 @@ def insert(data, host, username, password, database, build=False):
     # 建立链接
 
         # 建立链接
-    engine = create_engine(f'mysql://{username}:{password}@{host}/{database}')
+    engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{database}')
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
     # 创建空间
