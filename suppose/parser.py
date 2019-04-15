@@ -269,7 +269,6 @@ def build_table(data, host, username, password, database):
     # 提取除info外的所有字段
     for column_name in data:
         if column_name not in static_column_list:
-            print(column_name)
             column_name = column_name.replace('-', '_')
             result_data = session.execute(f'SELECT 1 '
                                    f'FROM INFORMATION_SCHEMA.COLUMNS '
