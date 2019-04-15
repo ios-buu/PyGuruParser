@@ -145,7 +145,7 @@ def alter_column(temp_session, alter_table, alter_table_name, alter_column_name,
     if column_data_type != str:
         column_type = JSON
     if data.rowcount is 0:
-        temp_session.execute(f"ALTER TABLE `{alter_table_name}` ADD `{alter_column_name}` mediumtext default '';")
+        temp_session.execute(f"ALTER TABLE `{alter_table_name}` ADD `{alter_column_name}` mediumtext;")
     try:
         setattr(alter_table, f'{alter_column_name}', Column(column_type))
     except:
@@ -255,14 +255,13 @@ def build_table(data, host, username, password, database):
             # 判断是否属于上面的静态字段
             if column_name not in static_column_list:
                 column_name = column_name.replace('-', '_')
-                data = session.execute(f'SELECT 1 '
+                result_data = session.execute(f'SELECT 1 '
                                        f'FROM INFORMATION_SCHEMA.COLUMNS '
                                        f'WHERE `TABLE_NAME` = "info" '
                                        f'AND `TABLE_SCHEMA` = "{database}" '
                                        f'AND `COLUMN_NAME` = "{column_name}"')
-
-                if data.rowcount is 0:
-                    session.execute(f'ALTER TABLE `info` ADD `{column_name}` mediumtext default "";')
+                if result_data.rowcount is 0:
+                    session.execute(f'ALTER TABLE `info` ADD `{column_name}` mediumtext;')
 
     # 静态的预设字段
     static_column_list = ['info']
@@ -270,15 +269,16 @@ def build_table(data, host, username, password, database):
     # 提取除info外的所有字段
     for column_name in data:
         if column_name not in static_column_list:
+            print(column_name)
             column_name = column_name.replace('-', '_')
-            data = session.execute(f'SELECT 1 '
+            result_data = session.execute(f'SELECT 1 '
                                    f'FROM INFORMATION_SCHEMA.COLUMNS '
                                    f'WHERE `TABLE_NAME` = "info" '
                                    f'AND `TABLE_SCHEMA` = "{database}" '
                                    f'AND `COLUMN_NAME` = "{column_name}"')
 
-            if data.rowcount is 0:
-                session.execute(f'ALTER TABLE `info` ADD `{column_name}` mediumtext default "";')
+            if result_data.rowcount is 0:
+                session.execute(f'ALTER TABLE `info` ADD `{column_name}` mediumtext;')
     session.commit()
     session.close()
 
