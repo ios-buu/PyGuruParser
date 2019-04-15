@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from suppose import counter
 from suppose.parser import Method, Info, Request, Response, Uri
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, mapper
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -28,7 +28,7 @@ def auto_label_set(x, y, maximum_limit=None):
         i += 1
 
 
-def print_endpoint(username, password, host, database):
+def print_endpoint(username, password, host, database,tag=True):
     engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{database}')
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
@@ -36,7 +36,8 @@ def print_endpoint(username, password, host, database):
     for method in session.query(Method).all():
         data_set.append([method.uri, method.method, method.info_id])
     (total, average, maximum, minimum, x, y) = counter.count_endpoint(data_set)
-    auto_label_set(x, y)
+    if tag:
+        auto_label_set(x, y)
     width = 0.35
     ind = np.arange(len(x))
     locs, labels = plt.xticks(ind, x)
@@ -56,7 +57,7 @@ def print_endpoint(username, password, host, database):
     plt.close()
 
 
-def print_uri(username, password, host, database):
+def print_uri(username, password, host, database,tag=True):
     engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{database}')
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
@@ -64,7 +65,8 @@ def print_uri(username, password, host, database):
     for uri in session.query(Uri).all():
         data_set.append([uri.uri, uri.info_id])
     (total, average, maximum, minimum, x, y) = counter.count_uri(data_set)
-    auto_label_set(x, y)
+    if tag:
+        auto_label_set(x, y)
     width = 0.35
     ind = np.arange(len(x))
     locs, labels = plt.xticks(ind, x)
@@ -84,7 +86,7 @@ def print_uri(username, password, host, database):
     plt.close()
 
 
-def print_resource(username, password, host, database):
+def print_resource(username, password, host, database,tag=True):
     engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{database}')
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
@@ -92,7 +94,8 @@ def print_resource(username, password, host, database):
     for uri in session.query(Uri).all():
         data_set.append([uri.uri, uri.info_id])
     (total, average, maximum, minimum, x, y) = counter.count_resource(data_set)
-    auto_label_set(x, y)
+    if tag:
+        auto_label_set(x, y)
     width = 0.35
     ind = np.arange(len(x))
     locs, labels = plt.xticks(ind, x)
@@ -112,7 +115,7 @@ def print_resource(username, password, host, database):
     plt.close()
 
 
-def print_request_param(username, password, host, database):
+def print_request_param(username, password, host, database,tag=True):
     engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{database}')
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
@@ -121,7 +124,8 @@ def print_request_param(username, password, host, database):
         data_set.append([request._in, request.uri, request.info_id, request.method])
     (api_count, param_count, average, maximum, x, y, x_, y_) = counter.count_request_param(data_set)
     plt.subplot(2, 1, 1)
-    auto_label_set(x, y)
+    if tag:
+        auto_label_set(x, y)
     width = 0.35
     ind = np.arange(len(x))
     locs, labels = plt.xticks(ind, x)
@@ -143,7 +147,8 @@ def print_request_param(username, password, host, database):
     x_list = []
     for index in range(0, len(x_)):
         x_list.append(index)
-    auto_label_set(x_list, y_)
+    if tag:
+        auto_label_set(x_list, y_)
     width = 0.35
     ind = np.arange(len(x_))
     plt.xticks(ind, x_)
@@ -157,7 +162,7 @@ def print_request_param(username, password, host, database):
     plt.close()
 
 
-def print_method(username, password, host, database):
+def print_method(username, password, host, database,tag=True):
     engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{database}')
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
@@ -171,7 +176,8 @@ def print_method(username, password, host, database):
     x_list = []
     for index in range(0, len(x)):
         x_list.append(index)
-    auto_label_set(x_list, y)
+    if tag:
+        auto_label_set(x_list, y)
     width = 0.35
     ind = np.arange(len(x))
     plt.xticks(ind, x)
@@ -187,7 +193,7 @@ def print_method(username, password, host, database):
     plt.close()
 
 
-def print_api_layer(username, password, host, database):
+def print_api_layer(username, password, host, database,tag=True):
     engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{database}')
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
@@ -195,7 +201,8 @@ def print_api_layer(username, password, host, database):
     for uri in session.query(Uri).all():
         data_set.append(uri.uri)
     (count, average, most_layer, maximum_layer, x, y) = counter.count_api_layer(data_set)
-    auto_label_set(x, y)
+    if tag:
+        auto_label_set(x, y)
     width = 0.35
     ind = np.arange(len(x))
     plt.xticks(ind, x)
@@ -211,7 +218,7 @@ def print_api_layer(username, password, host, database):
     plt.close()
 
 
-def print_request_param_location(username, password, host, database):
+def print_request_param_location(username, password, host, database,tag=True):
     engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{database}')
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
@@ -240,7 +247,8 @@ def print_request_param_location(username, password, host, database):
     x_list = []
     for index in range(0, len(x)):
         x_list.append(index)
-    auto_label_set(x_list, bottom_list)
+    if tag:
+        auto_label_set(x_list, bottom_list)
     plt.xticks(ind, x)
     plt.yticks(np.arange(0, max(bottom) + (max(bottom) / 5), (max(bottom) + 1) / 10))
     plt.ylabel('The number of endpoints')
@@ -249,7 +257,8 @@ def print_request_param_location(username, password, host, database):
     plt.legend(['0', '1', '2', '3', '...', len(y_list), 'increase progressively'])
 
     plt.subplot(1, 2, 2)
-    auto_label_set(x_list, y_)
+    if tag:
+        auto_label_set(x_list, y_)
     plt.xticks(ind, x_)
     plt.yticks(np.arange(0, max(y_) + (max(y_) / 10), (max(y_) + 1) / 10))
     plt.ylabel('The number of endpoints')

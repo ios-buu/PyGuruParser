@@ -3,12 +3,12 @@
 import json
 from sqlalchemy import Column, String, Integer, JSON, create_engine
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import sessionmaker, mapper
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 import logging
 import sys
 import time
-from suppose import parser as p, scanner
+from suppose import scanner
 import yaml
 
 log_name = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -297,10 +297,10 @@ def convert(host, username, password, database):
     session = session_factory()
     # 创建指针
     info_list = session.query(Info).all()
-    uri_id = 1
-    method_id = 1
-    request_id = 1
-    response_id = 1
+    uri_id = session.query(Uri).count()+1
+    method_id = session.query(Method).count()+1
+    request_id = session.query(Request).count()+1
+    response_id = session.query(Response).count()+1
     info_count = 1
     request_field = ['id', 'info_id', 'uri_id', 'uri', 'method_id', 'type', 'method', 'name', 'description', 'required',
                      '_in', 'in', 'minimum', 'maximum', 'format', 'pattern', 'schema']
@@ -370,8 +370,7 @@ def convert(host, username, password, database):
                                         response_id += 1
                                         session.add(response_pojo)
                                     except:
-                                        logger.exception(
-                                            f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] -> res[{response_pojo.code}]出现错误 ->  {sys.exc_info()}]")
+                                        logger.exception(f"[{info_pojo.id}][{uri_pojo.uri}][{method_pojo.method}] -> res[{response_pojo.code}]出现错误 ->  {sys.exc_info()}]")
 
                             if "parameters" in methods:
                                 parameters = methods['parameters']
@@ -500,8 +499,7 @@ def insert(data, host, username, password, database, build=False):
         # update_text时update时，要更改的部分字符串
         update_text = update_text + temp_column_name + f"='{temp_data}',"
     # 查询是否存在
-    sql = "SELECT id FROM info WHERE domain_key = '" + insert_data['domain_key'] + "' AND version ='" + insert_data[
-        'version'] + "'"
+    sql = "SELECT id FROM info WHERE domain_key = '" + insert_data['domain_key'] + "' AND version ='" + insert_data['version'] + "'"
 
     # 提交
     result = session.execute(sql)
