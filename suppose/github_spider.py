@@ -1,5 +1,5 @@
 # code=utf-8
-import parser
+from suppose import parser
 import yaml
 import json
 from pydriller import RepositoryMining
@@ -51,4 +51,4 @@ def crawl(folder_path, host, username, password, database,start_commit_hash = No
                         logger.error(e)
                 else:
                     logger.info(f'[{commit.hash}] [{i}]跳过...')
-crawl('/Users/canfuu/Documents/github/openapi-directory/openapi-directory','www.canfuu.com','canfuu','Cts1997..','api_version',start_commit_hash='a5afb0c211cf420599456e3e7d8a82ad1c0c419e')
+# crawl('/Users/canfuu/Documents/github/openapi-directory/openapi-directory','www.canfuu.com','canfuu','Cts1997..','api_version',start_commit_hash='a5afb0c211cf420599456e3e7d8a82ad1c0c419e')

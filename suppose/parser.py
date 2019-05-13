@@ -8,21 +8,21 @@ from sqlalchemy.ext.declarative import declarative_base
 import logging
 import sys
 import time
-import scanner
+from suppose import scanner
 import yaml
 
 log_name = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
-handler = logging.FileHandler(f"{log_name} parser.log")
-handler.setLevel(logging.WARN)
+# handler = logging.FileHandler(f"{log_name} parser.log")
+# handler.setLevel(logging.WARN)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
+# handler.setFormatter(formatter)
 
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 
-logger.addHandler(handler)
+# logger.addHandler(handler)
 logger.addHandler(console)
 # info -> 每个API的单独数据
 
@@ -309,12 +309,12 @@ def build_table(data, host, username, password, database):
     session.commit()
     session.close()
 
-session = init_session('localhost','root','root','api_version')
-for info_pojo in session.query(Info).filter(Info.id==3200):
-    print(info_pojo.paths)
-    print(info_pojo.paths.replace("\\", "\\\\"))
-    paths = json.loads(info_pojo.paths, strict=False)
-    print(paths)
+# session = init_session('localhost','root','root','api_version')
+# for info_pojo in session.query(Info).filter(Info.id==3200):
+#     print(info_pojo.paths)
+#     print(info_pojo.paths.replace("\\", "\\\\"))
+#     paths = json.loads(info_pojo.paths, strict=False)
+#     print(paths)
 def convert(host, username, password, database):
     """
     :param host: 数据库host
